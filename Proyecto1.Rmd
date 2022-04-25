@@ -1,0 +1,112 @@
+---
+title: "Proyecto 1"
+author: Felipe Liquitay & Sebastián Sáez
+output: 
+  html_document:
+    toc: true
+    toc_depth: 6
+    toc_float: true
+    collapsed: true
+    smooth_scroll: true
+    theme: united
+    highlight: kate
+    df_print: paged
+    code_folding: show
+date: '25 de abril de 2022'
+---
+## Hipótesis y definición de área de estudio  
+En este proyecto utilizaremos la data "naturalearth" que se encuentra en la librería rnaturalearth que contiene información cultural y física sobre la población del mundo incluyendo los países de cada uno de estos datos. Por otro lado tomaremos una base de datos que nos indica la expectativa de vida de las personas según su país. Con estos dos dataframes recopilaremos la información necesaria para lograr realizar un análisis geoespacial de la relación que existe entre la expectativa de vida dentro de un país con la economía que existe este.
+
+Analizando la posible relación mencionada anteriormente, obtuvimos nuestra hipótesis, esta siendo "Un mayor nivel de desarrollo como país trae consigo que la expectativa de vida dentro del mismo sea mayor", es decir, entre mayor desarrollo exista dentro de un país (En todas las áreas), mayor sera la edad promedio de muerte que exista dentro de su población.
+
+## Obtención y limpieza de datos
+Para la obtención de la data primeramente debemos cargar los paquetes que vamos a utilizar, como se menciono anteriormente obtenemos la data world a traves de la libreria rnaturalearth, esto usando la función ne_countries. La data de "life expectancy" se obtiene cargando un excel que nos entrega la información de la misma para luego poder trabajarla, esto a traves de la función read_excel de la libreria readxl.
+
+Luego de tener nuestras datas a trabajar, creamos un archivo sf, el cual contiene las columnas de cada una de las datas mencionadas anteriormente que nos serviran para darnos cuenta si existe una relación entre la expectativa de vida y el nivel de desarrollo de un pais esto lo hacemos a traves de la función merge. El nuevo data creado se ordena a través de la variable "brk_a3", la cual contiene dentro de los dos dataframe que se combinan la abreviatura de los países. 
+A la data creada se le crea data1(eliminando a Rusia y Fiji) la cual explicaremos su razón dentro del análisis cartográfico.
+
+Para la limpieza de los datos, ademas del filtrado realizado para la obtención de solo las columnas a utilizar, se aplico la función na.omit la cual nos ayuda a eliminar todas las filas con valores NA que se encuentran dentro de nuestra data creada.
+
+```{r}
+#Cargo paquetes
+pacman::p_load(rnaturalearth, rnaturalearthdata,sp,dplyr,readxl,tidyverse,tmap,viridis,ggplot2,sf,mapview,leafpop,tmaptools,spdep)
+
+#Abro ayuda de rnaturaleartg
+vignette("rnaturalearth", package = "rnaturalearth")
+
+#creo dataframe de los países y se carga data de life expectancy
+world = ne_countries(scale='medium', type='map_units',returnclass = "sf")
+
+life = read_excel("C:/Users/Felipe Liquitay/Documents/Ciencias de datos espaciales/API_SP.DYN.LE00.IN_DS2_en_excel_v2_3930593.xls", col_names=TRUE)
+
+#Data creada para el mapview y la realización del análisis
+data = merge(world[,c("name_long","economy","brk_a3")],life[,c("2020","brk_a3")], by = "brk_a3")
+
+#Data creada para el tmap(sin Rusia ni Fiji)
+data1= data[-c(60,155),]
+
+#Se limpian las datas 
+data=na.omit(data)
+
+data1=na.omit(data1)
+
+data1 = sf::st_make_valid(data1)
+
+```
+
+## Análisis de correlacion
+
+Al realizar un análisis de los datos obtenidos, se puede visualiza que es tendencia que los paises que se encuentran dentro del desarrollo como "Developed Región", tienen una expectativa de vida superior a los que no se encuentran en este nivel de desarrollo, con una expectativa aproximademente mayor a 78 años en promedio. Por otro lado, si nos vamos al otro extremo, podemos ver que dentro de los paises que tienen un menor desarrollo dentro de su región ubicados principalmente en Africa, existe una tendencia a una expectativa de vida promedio menor a 70 años dentro de su población, o en casos extremos de dos regiones que se encuentran en el último nivel dentro de nuestra escala de desarrollo, se ve que tienen una expectativa de vida menor a las 55 años, es por esto, que podemos reforzar nuestra hipotesis(mostrandolo directamente en los mapas ploteados que se veran a continuación), ademas de que esto nos lleva a ver que existe una correlación dentro de nuestras dos variables.
+
+Esta correlación que existe es debido a que en países con mayor desarrollo existe un mayor cuidado de su población y un avance más amplio en sectores importantes, como lo es la educación, la salud, el estilo de vida, etc. Todos estos factores llevan a que el desarrollo de un país afecte a la expectativa de vida dentro del mismo.
+```{r}
+#Imprimimos información
+head(data)
+summary(data)
+```
+
+## Análisis Cartografico
+Para lograr un análisis cartográfico decidimos realizar la creación de dos estilos de mapas interactivos, los cuales fueron utilizados para realizar un análisis tanto a la correlación como a las variables en la cual se presentaba interés.
+
+Para la realización de los mismos utilizamos dos dataframe uno de estos llamado "data" que fue utilizado para la creación de un mapa interactivo con la funcion mapview, la cual contiene la data completa creada desde la combinación de los dataframes que se utilizaron para el análisis. El otro dataframe utilizado es el llamado "data1" este a diferencia de data se le eliminaron las columas de Rusia y Fiji, este fue creado, para poder realizar un mapa interactivo con la libreria tmap, y poder lograr una mejor visualización de la información que este entregaba, debido a que estos dos paises mencionados anteriormente se expandian por el mapa.
+
+El mapa interactivo creado con mapview nos entrega la posibilidad de seleccionar que información deseamos visualizar, ya sea, nivel de desarrollo o expectativa de vida, y ver como esta va cambiando dependiendo de la región en que se analice.
+
+El mapa interactivo creado con tmap nos muestra estas variables juntas dentro del mapa, esto nos ayuda a tener una idea mejor de como se relacionan las mismas, ya que, se tiene colores por zona de expectativas de vida y puntos por el desarrollo de la misma.
+
+Estos mapas ayudaron en el análisis, ya que, nos entregaron una visualización de la relación que existia entre estas dos variables lo cual nos facilito información de ayuda para nuestra hipotesis.
+```{r}
+#paleta para los colores
+paleta = viridis(n=length(unique(data["2020"])), direction = -1)
+
+paleta1 = inferno(n=length(unique(data["economy"])), direction = -1)
+
+#Se ven las dos variables que se evaluaran y como estas varían dependiendo del país. Se crea una dataframe "data1" limpiando Rusia y Fiji, ya que, se expanden por el mapa.
+tmap_mode("view")
+
+tmap_options(check.and.fix = TRUE)
+
+tm_shape(data1) + tm_polygons(col = ("2020"), palette = paleta, title = "Life Expectancy")+ tm_basemap("Stamen.Watercolor") + 
+  tm_shape(data1) + tm_dots( col = "economy",palette = paleta1 ,title = "Desarrollo", popup.vars = TRUE,size=0.05) 
+
+
+
+```
+Mapview
+```{r}
+#De esta forma se puede interactuar con el mapa para luego seleccionar que información de la data queremos visualizar y el fondo de esta, para esto utilizamos el dataframe "data".
+mapview(data, zcol = "2020",layer.name = "Life Expectancy") + 
+  mapview(data, zcol= "economy",layer.name = "Desarrollo")
+```
+
+
+## Conclusiones
+Como se menciono anteriormente, a traves de análisis realizados tanto a la correlación que existe dentro de nuestras dos variables, como a cada una de estas indivualmente, podemos darnos cuenta como si influye el desarrollo de un país en las expectativas de vida promedio que tiene el mismo, esto debido a la mejor calidad de vida que existe en los mismos gracias al desarrollo, en temas educacionales, recreativos, salud, etc. Todos estos factores llevan a que el promedio de expectativa de vida aumente dentro de estas regiones.
+
+Es por lo anterior, que concluimos que la hipotesis planteada es verdadera, debido a que un mayor desarrollo dentro de un pais, lleva a una mayor expectativa de vida dentro del mismo.  
+
+## Referencias
+https://resourcewatch.org/data/explore
+https://github.com/raimun2/Ciencia-de-datos-geoespaciales/blob/main/R/06_mapas_interactivos.R
+
+
